@@ -113,6 +113,7 @@ All configuration is via environment variables (see `.env.example`):
 | `DISCORD_GUILD_ID`   | —                | Optional guild for instant command registration (dev) |
 | `POLL_INTERVAL_CRON` | `*/5 * * * *`    | How often sources are polled                           |
 | `BACKFILL_LIMIT`     | `3`              | Max videos posted per source on the first poll         |
+| `YOUTUBE_INCLUDE_SHORTS` | `true`       | Also post YouTube Shorts (live streams are excluded)   |
 | `DOWNLOAD_VIDEOS`    | `false`          | Upload the video file (if < `MAX_UPLOAD_MB`) vs. link  |
 | `MAX_UPLOAD_MB`      | `25`             | Discord upload size cap                                 |
 | `YTDLP_PATH`         | `yt-dlp`         | Path to the yt-dlp binary                              |
@@ -122,6 +123,8 @@ All configuration is via environment variables (see `.env.example`):
 - By default the worker posts the **video link** and lets Discord render the
   inline player (great for YouTube/X/TikTok). Set `DOWNLOAD_VIDEOS=true` to
   upload the file instead when it fits under `MAX_UPLOAD_MB`.
+- For YouTube it pulls the **Videos** tab and, with `YOUTUBE_INCLUDE_SHORTS=true`
+  (default), the **Shorts** tab too. Live streams are always excluded.
 - **Instagram** and some **Twitter/X** sources may require authentication. yt-dlp
   supports `--cookies`; wire `YTDLP_COOKIES` into `apps/worker/src/ytdlp.ts` if needed.
 - Scaling out delivery (rate limits, retries at high volume) would be the natural

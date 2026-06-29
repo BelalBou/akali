@@ -1,15 +1,25 @@
 import { Platform } from "@akali/db";
-import type { NormalizedVideo } from "@akali/shared";
+import { createLogger, type NormalizedVideo } from "@akali/shared";
+import { env } from "@akali/config";
 import { fetchInfo, listLatest, type FlatEntry } from "./ytdlp.js";
 
-/** Build the URL yt-dlp should list to find the latest uploads of a source. */
-function listUrlFor(platform: Platform, sourceUrl: string): string {
+const log = createLogger("worker:providers");
+
+/**
+ * Build the URL(s) yt-dlp should list to find the latest uploads of a source.
+ * A YouTube channel exposes separate tabs: "Videos" (long-form) and "Shorts".
+ * We always pull Videos, optionally Shorts; live streams are left out.
+ */
+function listUrlsFor(platform: Platform, sourceUrl: string): string[] {
+  const base = sourceUrl.replace(/\/+$/, "");
   switch (platform) {
-    case Platform.YOUTUBE:
-      // Target the "Videos" tab to avoid the Shorts/Live tabs.
-      return `${sourceUrl.replace(/\/+$/, "")}/videos`;
+    case Platform.YOUTUBE: {
+      const urls = [`${base}/videos`];
+      if (env.YOUTUBE_INCLUDE_SHORTS) urls.push(`${base}/shorts`);
+      return urls;
+    }
     default:
-      return sourceUrl;
+      return [sourceUrl];
   }
 }
 
@@ -33,20 +43,41 @@ function parseUploadDate(yyyymmdd?: string): Date | undefined {
   return Number.isNaN(date.getTime()) ? undefined : date;
 }
 
-/** Fetch the latest videos for a source (newest first), as lightweight records. */
+/**
+ * Fetch the latest videos for a source (newest first), as lightweight records.
+ * For YouTube this merges the Videos and (optionally) Shorts tabs, de-duplicated
+ * by video id.
+ */
 export async function fetchLatestVideos(
   platform: Platform,
   sourceUrl: string,
   limit: number,
 ): Promise<NormalizedVideo[]> {
-  const entries = await listLatest(listUrlFor(platform, sourceUrl), limit);
-  return entries.map((entry) => ({
-    platform,
-    externalId: entry.id,
-    url: videoUrlFor(platform, entry),
-    title: entry.title,
-    durationSec: entry.duration,
-  }));
+  const merged = new Map<string, NormalizedVideo>();
+
+  for (const listUrl of listUrlsFor(platform, sourceUrl)) {
+    let entries: FlatEntry[];
+    try {
+      entries = await listLatest(listUrl, limit);
+    } catch (err) {
+      // A channel may not expose every tab (e.g. no /shorts) — skip that listing.
+      log.debug({ err, listUrl }, "Listing failed, skipping");
+      continue;
+    }
+
+    for (const entry of entries) {
+      if (!entry.id || merged.has(entry.id)) continue;
+      merged.set(entry.id, {
+        platform,
+        externalId: entry.id,
+        url: videoUrlFor(platform, entry),
+        title: entry.title,
+        durationSec: entry.duration,
+      });
+    }
+  }
+
+  return [...merged.values()];
 }
 
 /** Best-effort enrichment of a video with full metadata (thumbnail, date, ...). */

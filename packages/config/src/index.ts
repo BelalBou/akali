@@ -27,6 +27,8 @@ const schema = z.object({
   // Worker
   POLL_INTERVAL_CRON: z.string().default("*/5 * * * *"),
   BACKFILL_LIMIT: z.coerce.number().int().min(0).default(3),
+  // YouTube: also pull the "Shorts" tab (live streams are always excluded).
+  YOUTUBE_INCLUDE_SHORTS: booleanString.default(true),
   DOWNLOAD_VIDEOS: booleanString.default(false),
   MAX_UPLOAD_MB: z.coerce.number().int().positive().default(25),
   YTDLP_PATH: z.string().default("yt-dlp"),
