@@ -1,0 +1,25 @@
+{
+  "name": "@akali/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "poll:once": "tsx src/scripts/poll-once.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "@akali/config": "workspace:*",
+    "@akali/db": "workspace:*",
+    "@akali/shared": "workspace:*",
+    "discord.js": "^14.17.3",
+    "node-cron": "^3.0.3"
+  },
+  "devDependencies": {
+    "@types/node-cron": "^3.0.11"
+  }
+}

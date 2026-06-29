@@ -1,0 +1,21 @@
+{
+  "name": "@akali/bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "deploy-commands": "tsx src/scripts/deploy-commands.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "@akali/config": "workspace:*",
+    "@akali/db": "workspace:*",
+    "@akali/shared": "workspace:*",
+    "discord.js": "^14.17.3"
+  }
+}

@@ -1,0 +1,107 @@
+// Prisma schema for Akali.
+// Docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Supported video platforms.
+enum Platform {
+  YOUTUBE
+  INSTAGRAM
+  TWITTER
+  TIKTOK
+}
+
+/// A tracked channel / account / profile we poll for new videos.
+model Source {
+  id            String    @id @default(cuid())
+  platform      Platform
+  /// Canonical URL of the channel/account being tracked.
+  url           String
+  /// Stable platform identifier (channel id, @handle, user id, ...).
+  externalId    String
+  displayName   String?
+  enabled       Boolean   @default(true)
+  lastCheckedAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  videos        Video[]
+  subscriptions Subscription[]
+
+  @@unique([platform, externalId])
+  @@index([enabled])
+}
+
+/// Links a Source to a Discord channel that should receive its videos.
+model Subscription {
+  id               String   @id @default(cuid())
+  source           Source   @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  sourceId         String
+  guildId          String
+  discordChannelId String
+  /// Discord user id of who created the subscription (for auditing).
+  createdBy        String?
+  createdAt        DateTime @default(now())
+
+  deliveries       Delivery[]
+
+  @@unique([sourceId, discordChannelId])
+  @@index([guildId])
+}
+
+/// A video discovered on a Source.
+model Video {
+  id           String    @id @default(cuid())
+  source       Source    @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  sourceId     String
+  platform     Platform
+  /// Platform-specific video id.
+  externalId   String
+  url          String
+  title        String?
+  description  String?
+  thumbnailUrl String?
+  author       String?
+  durationSec  Int?
+  publishedAt  DateTime?
+  fetchedAt    DateTime  @default(now())
+
+  deliveries   Delivery[]
+
+  @@unique([platform, externalId])
+  @@index([sourceId, publishedAt])
+}
+
+enum DeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
+/// One Video posted (or to be posted) to one Subscription's Discord channel.
+/// The unique constraint guarantees a video is delivered at most once per channel.
+model Delivery {
+  id               String         @id @default(cuid())
+  video            Video          @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  videoId          String
+  subscription     Subscription   @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  subscriptionId   String
+  status           DeliveryStatus @default(PENDING)
+  discordMessageId String?
+  error            String?
+  attempts         Int            @default(0)
+  createdAt        DateTime       @default(now())
+  sentAt           DateTime?
+
+  @@unique([videoId, subscriptionId])
+  @@index([status])
+}
