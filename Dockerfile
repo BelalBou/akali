@@ -21,11 +21,20 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
 RUN pnpm -r build
 
 # ──────────────────────────────────────────────────────────────
-# Migrate: one-shot container that applies Prisma migrations
+# Migrate: one-shot container that syncs the Prisma schema
+#
+# `db push` et non `migrate deploy` : on synchronise depuis schema.prisma au
+# lieu de rejouer un historique de migrations, qui casse des qu'une migration
+# a ete jouee a la main ou que l'historique diverge.
+#
+# Volontairement SANS --accept-data-loss : si la synchronisation impliquait
+# une perte de donnees, prisma refuse, ce conteneur sort en erreur, et les
+# services qui en dependent (bot, worker) ne demarrent pas. L'echec est le
+# signal.
 # ──────────────────────────────────────────────────────────────
 FROM build AS migrate
 WORKDIR /app/packages/db
-CMD ["pnpm", "exec", "prisma", "migrate", "deploy"]
+CMD ["pnpm", "exec", "prisma", "db", "push", "--skip-generate"]
 
 # ──────────────────────────────────────────────────────────────
 # Bot runtime
